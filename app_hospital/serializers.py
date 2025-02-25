@@ -4,6 +4,29 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import authenticate
 
 
+class DoctorRegisterSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = DoctorProfile
+        fields = ('username', 'email', 'password', 'first_name', 'last_name',
+                  'phone_number', 'department', 'specialty', 'working_days',
+                  'experience', 'gender', 'shift_start', 'shift_end', 'appointment_price')
+        extra_kwargs = {'password': {'write_only': True}}
+
+    def create(self, validated_data):
+        user = DoctorProfile.objects.create_user(**validated_data)
+        return user
+
+    def to_representation(self, instance):
+        refresh = RefreshToken.for_user(instance)
+        return {
+            'user': {
+                'username': instance.username,
+                'email': instance.email,
+            },
+            'access': str(refresh.access_token),
+            'refresh': str(refresh),
+        }
+
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = UserProfile
@@ -81,15 +104,22 @@ class DepartmentSerializer(serializers.ModelSerializer):
         model = Department
         fields = '__all__'
 
-class  SpecialtyListSerializer(serializers.ModelSerializer):
-    class Meta:
-        model =  Specialty
-        fields = ['specialty_name']
-
-class SpecialtySerializer(serializers.ModelSerializer):
+class DepartmentDetailSerializer(serializers.ModelSerializer):
     class Meta:
         model = Department
-        fields = '__all__'
+        fields = ['department_name',]
+
+class SpecialtyListSerializer(serializers.ModelSerializer):
+    department = DepartmentDetailSerializer()
+
+    class Meta:
+        model = Specialty
+        fields = ['id', 'specialty_name', 'department']
+
+class SpecialtyDetailSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Specialty
+        fields = ['specialty_name']
 
 class PatientListSerializer(serializers.ModelSerializer):
     class Meta:
@@ -122,8 +152,6 @@ class  MedicalAdviceListSerializer(serializers.ModelSerializer):
         model = MedicalAdvice
         fields = ['id', 'diagnosis', 'treatment', 'medication']
 
-
-
 class FeedbackSerializer(serializers.ModelSerializer):
     class Meta:
         model = Feedback
@@ -140,4 +168,12 @@ class FeedbackDetailSerializer(serializers.ModelSerializer):
         fields = ['patient', 'doctor', 'rating', 'comment', 'created_at']
 
 
+class AppointmentSerializer(serializers.ModelSerializer):
+    patient = PatientListSerializer()
+    doctor = DoctorProfileListSerializer()
+    date_time = serializers.DateTimeField(format('%Y-%B-%d  %H:%M'))
+
+    class Meta:
+        model = Appointment
+        fields = ['id', 'patient', 'doctor', 'status', 'date_time']
 
